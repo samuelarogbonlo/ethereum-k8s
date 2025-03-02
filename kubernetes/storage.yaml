@@ -1,0 +1,94 @@
+---
+# Storage Class for Local Storage
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-storage
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+---
+# Persistent Volume for Geth
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: geth-data-pv
+  labels:
+    type: local
+    app: ethereum-node
+spec:
+  storageClassName: local-storage
+  capacity:
+    storage: 1Ti
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/tmp/ethereum/geth"
+  persistentVolumeReclaimPolicy: Retain
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - minikube  # Change this to your node name if not using minikube
+---
+# Persistent Volume for Lighthouse
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: lighthouse-data-pv
+  labels:
+    type: local
+    app: ethereum-node
+spec:
+  storageClassName: local-storage
+  capacity:
+    storage: 200Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/tmp/ethereum/lighthouse"
+  persistentVolumeReclaimPolicy: Retain
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - minikube  # Change this to your node name if not using minikube
+---
+# Persistent Volume Claim for Geth
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: geth-data-pvc
+  namespace: ethereum-node
+spec:
+  storageClassName: local-storage
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Ti
+  selector:
+    matchLabels:
+      app: ethereum-node
+---
+# Persistent Volume Claim for Lighthouse
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lighthouse-data-pvc
+  namespace: ethereum-node
+spec:
+  storageClassName: local-storage
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 200Gi
+  selector:
+    matchLabels:
+      app: ethereum-node

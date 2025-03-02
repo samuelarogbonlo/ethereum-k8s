@@ -1,0 +1,82 @@
+---
+# Service for Geth - Internal Engine API (for Lighthouse communication)
+apiVersion: v1
+kind: Service
+metadata:
+  name: geth-service
+  namespace: ethereum-node
+  labels:
+    app: geth
+spec:
+  selector:
+    app: geth
+  ports:
+  - name: engine
+    port: 8551
+    targetPort: engine
+  - name: metrics
+    port: 6060
+    targetPort: metrics
+  type: ClusterIP
+---
+# Service for Geth RPC - External API access
+apiVersion: v1
+kind: Service
+metadata:
+  name: geth-rpc-service
+  namespace: ethereum-node
+  labels:
+    app: geth
+spec:
+  selector:
+    app: geth
+  ports:
+  - name: rpc
+    port: 8545
+    targetPort: rpc
+    nodePort: 30545  # Choose a port between 30000-32767
+  - name: ws
+    port: 8546
+    targetPort: ws
+    nodePort: 30546  # Choose a port between 30000-32767
+  - name: p2p-tcp
+    port: 30303
+    targetPort: p2p-tcp
+    nodePort: 30303  # P2P port
+    protocol: TCP
+  - name: p2p-udp
+    port: 30303
+    targetPort: p2p-udp
+    nodePort: 30304  # P2P port (UDP)
+    protocol: UDP
+  type: NodePort
+---
+# Service for Lighthouse
+apiVersion: v1
+kind: Service
+metadata:
+  name: lighthouse-service
+  namespace: ethereum-node
+  labels:
+    app: lighthouse
+spec:
+  selector:
+    app: lighthouse
+  ports:
+  - name: http
+    port: 5052
+    targetPort: http
+  - name: metrics
+    port: 5054
+    targetPort: metrics
+  - name: p2p-tcp
+    port: 9000
+    targetPort: p2p-tcp
+    nodePort: 30900  # P2P port
+    protocol: TCP
+  - name: p2p-udp
+    port: 9000
+    targetPort: p2p-udp
+    nodePort: 30901  # P2P port (UDP)
+    protocol: UDP
+  type: NodePort
