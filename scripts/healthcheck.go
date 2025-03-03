@@ -8,15 +8,21 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 	"time"
 )
 
 // Configuration
 const (
-	executionRPCEndpoint = "http://localhost:30545" // Update with your node's IP if not using local
-	timeoutSeconds       = 10
-	minPeers             = 1 // Minimum number of peers to consider healthy
+	localEndpoint         = "http://localhost:30545"        // Local forwarded endpoint
+	clusterEndpoint       = "http://192.168.49.2:30545"     // Direct cluster endpoint
+	timeoutSeconds        = 10
+	minPeers              = 1 // Minimum number of peers to consider healthy
+	kubernetesNamespace   = "ethereum-node"
+	gethRPCServiceName    = "geth-rpc-service"
+	gethRPCLocalPort      = 30545
+	gethRPCContainerPort  = 8545
 )
 
 // RPC request structure
@@ -97,6 +103,67 @@ func HexToInt(hex string) (uint64, error) {
 	return strconv.ParseUint(hex, 16, 64)
 }
 
+// setupPortForwarding ensures the port forwarding is running
+func setupPortForwarding() bool {
+	// Check if port forwarding is already running
+	cmd := exec.Command("pgrep", "-f", fmt.Sprintf("kubectl port-forward.*%d", gethRPCLocalPort))
+	if err := cmd.Run(); err == nil {
+		fmt.Println("✅ Port forwarding is already running")
+		return true
+	}
+
+	fmt.Println("⚠️ Port forwarding not detected, attempting to set it up...")
+
+	// Set up port forwarding
+	cmd = exec.Command("kubectl", "port-forward",
+		fmt.Sprintf("service/%s", gethRPCServiceName),
+		fmt.Sprintf("%d:%d", gethRPCLocalPort, gethRPCContainerPort),
+		"-n", kubernetesNamespace)
+
+	// Run in background
+	if err := cmd.Start(); err != nil {
+		fmt.Printf("❌ Failed to start port forwarding: %v\n", err)
+		return false
+	}
+
+	// Wait a bit for port forwarding to establish
+	time.Sleep(2 * time.Second)
+
+	// Check if it's running
+	checkCmd := exec.Command("pgrep", "-f", fmt.Sprintf("kubectl port-forward.*%d", gethRPCLocalPort))
+	if err := checkCmd.Run(); err != nil {
+		fmt.Println("❌ Port forwarding setup failed")
+		return false
+	}
+
+	fmt.Println("✅ Port forwarding set up successfully")
+	return true
+}
+
+// getWorkingEndpoint tries both local and cluster endpoints to find one that works
+func getWorkingEndpoint() string {
+	// Try local endpoint first
+	client := &http.Client{Timeout: 2 * time.Second}
+	_, err := client.Get(localEndpoint)
+	if err == nil {
+		return localEndpoint
+	}
+
+	// If local fails, try cluster endpoint
+	_, err = client.Get(clusterEndpoint)
+	if err == nil {
+		return clusterEndpoint
+	}
+
+	// If both fail but port forwarding is set up, use local
+	if setupPortForwarding() {
+		return localEndpoint
+	}
+
+	// Default back to local even if it might not work
+	return localEndpoint
+}
+
 func main() {
 	var exitCode = 0
 	var healthStatus = "HEALTHY"
@@ -104,6 +171,10 @@ func main() {
 	fmt.Println("====================================")
 	fmt.Println("  Ethereum Node Health Check")
 	fmt.Println("====================================")
+
+	// Determine which endpoint to use
+	executionRPCEndpoint := getWorkingEndpoint()
+	fmt.Printf("Using endpoint: %s\n\n", executionRPCEndpoint)
 
 	// Check 1: Node connection
 	fmt.Println("Checking node connection...")

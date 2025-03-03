@@ -1,0 +1,9 @@
+apiVersion: v1
+data:
+  lighthouse-config.sh: |
+    #!/bin/sh
+    exec lighthouse beacon_node --network mainnet --datadir /data --http --http-address 0.0.0.0 --metrics --metrics-address 0.0.0.0 --checkpoint-sync-url https://mainnet.checkpoint.sigp.io --execution-endpoint http://geth-service:8551 --execution-jwt /secrets/jwt/jwtsecret
+kind: ConfigMap
+metadata:
+  name: lighthouse-config
+  namespace: ethereum-node

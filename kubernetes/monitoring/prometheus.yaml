@@ -77,23 +77,25 @@ spec:
           mountPath: /prometheus
         resources:
           requests:
-            cpu: "500m"
-            memory: "512Mi"
+            cpu: 1
+            memory: 2Gi
           limits:
-            cpu: "1"
-            memory: "1Gi"
+            cpu: 2
+            memory: 4Gi
         livenessProbe:
           httpGet:
             path: /-/healthy
-            port: web
-          initialDelaySeconds: 30
-          periodSeconds: 15
+            port: 9090
+          initialDelaySeconds: 120
+          timeoutSeconds: 60
+          periodSeconds: 20
         readinessProbe:
           httpGet:
             path: /-/ready
-            port: web
-          initialDelaySeconds: 30
-          periodSeconds: 15
+            port: 9090
+          initialDelaySeconds: 120
+          timeoutSeconds: 60
+          periodSeconds: 20
       volumes:
       - name: prometheus-config
         configMap:

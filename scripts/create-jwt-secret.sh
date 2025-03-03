@@ -13,8 +13,8 @@ SECRET_KEY="jwtsecret"
 TMP_FILE=$(mktemp)
 trap 'rm -f ${TMP_FILE}' EXIT
 
-# Generate a 32-byte random hex string
-openssl rand -hex 32 > "${TMP_FILE}"
+# Generate a 32-byte random hex string without newlines
+echo -n $(openssl rand -hex 32) > "${TMP_FILE}"
 
 # Base64 encode the JWT secret for Kubernetes
 JWT_SECRET=$(cat "${TMP_FILE}" | base64 -w 0)
