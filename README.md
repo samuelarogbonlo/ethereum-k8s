@@ -76,12 +76,6 @@ make health-check  # Run health checks on existing deployment
 make help          # Show all available commands
 ```
 
-### Customization and Manual Deployment
-
-1. **Prepare Environment**: Ensure your Kubernetes enviroemnt is ready with Minikube or preffered local solution
-2. **Customize Configuration**: Modify storage, resource allocation, and network settings in the YAML files as you wish
-3. **Deploy Manually**: Run `./deploy-ethereum.sh` to deploy the entire stack
-
 ### Accessing Services
 
 All services are exposed through Kubernetes port forwarding:
@@ -109,19 +103,12 @@ Important production considerations:
 
 ## Performance Optimization
 
-See the `optimization.MD` file for detailed information on optimizing your Ethereum node deployment, including:
+See the `[Optimization.MD](https://github.com/samuelarogbonlo/ethereum-k8s/blob/main/docs/optimzation.MD)` file for detailed information on optimizing your Ethereum node deployment, including:
 
 - Network performance tuning for P2P traffic
 - Storage configuration for blockchain data
 - System-level optimizations (NUMA, file limits, scheduler settings)
 - Client-specific parameter optimization
-
-## Security Considerations
-
-- The JWT secret is used for secure communication between execution and consensus clients
-- Proper resource limits prevent DoS attacks
-- Network policies can be applied for additional security
-- Consider enabling TLS for RPC endpoints in production
 
 ## License
 
