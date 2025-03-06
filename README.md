@@ -16,39 +16,6 @@ This repository contains Kubernetes manifests and supporting scripts for deployi
 - **Production Ready**: Security configurations, resource management, and high availability options
 - **Web3 Support**: Optimized for serving dApps and supporting blockchain applications
 
-## Components
-
-### Execution Client (Geth)
-
-Go Ethereum (Geth) is deployed as a StatefulSet with persistent storage for the blockchain data. Key features:
-
-- Configured for optimal RPC and P2P connectivity
-- Persistent volume setup for chain data and state
-- Resource requests and limits properly sized for production use
-- Service exposures for JSON-RPC and WebSocket endpoints
-- JWT authentication for secure communication with the consensus client
-
-### Consensus Client (Lighthouse)
-
-Lighthouse is a high-performance consensus client for Ethereum, deployed with:
-
-- Beacon node configured for the Ethereum Proof of Stake network
-- Secure connection to the execution client via JWT
-- Optimized peer discovery and sync settings
-- Persistent storage for beacon chain data
-
-### Monitoring Stack
-
-The monitoring setup includes:
-
-- **Prometheus**: Collects metrics from Geth, Lighthouse, and node-exporter
-- **Grafana**: Pre-configured dashboards for:
-  - Blockchain sync status and progress
-  - Peer connectivity and network health
-  - System resource utilization (CPU, memory, disk I/O)
-  - Client-specific metrics for both Geth and Lighthouse
-- **Node Exporter**: Collects host-level metrics including disk I/O performance
-
 ## Prerequisites
 
 - Kubernetes cluster (v1.23+)
