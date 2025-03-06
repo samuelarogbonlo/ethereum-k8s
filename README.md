@@ -70,7 +70,7 @@ Important production considerations:
 
 ## Performance Optimization
 
-See the `[Optimization.MD](https://github.com/samuelarogbonlo/ethereum-k8s/blob/main/docs/optimzation.MD)` file for detailed information on optimizing your Ethereum node deployment, including:
+See the [Optimization.MD](https://github.com/samuelarogbonlo/ethereum-k8s/blob/main/docs/optimzation.MD) file for detailed information on optimizing your Ethereum node deployment, including:
 
 - Network performance tuning for P2P traffic
 - Storage configuration for blockchain data
