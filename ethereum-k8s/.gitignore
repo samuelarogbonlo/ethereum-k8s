@@ -1,0 +1,26 @@
+# Build artifacts
+health-check/eth-health-check
+
+# Logs
+*.log
+logs/
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Kubernetes generated files
+kubeconfig
+
+# Go specific
+*.exe
+*.test
+*.prof
+*.out

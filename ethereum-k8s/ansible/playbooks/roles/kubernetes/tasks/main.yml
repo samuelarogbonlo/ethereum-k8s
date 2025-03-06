@@ -1,0 +1,125 @@
+---
+# Kubernetes installation tasks
+
+- name: Install prerequisites
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+    state: present
+
+- name: Add Kubernetes APT GPG key
+  apt_key:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    state: present
+
+- name: Add Kubernetes APT repository
+  apt_repository:
+    repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
+    state: present
+    filename: kubernetes
+
+- name: Install containerd
+  apt:
+    name: containerd.io
+    state: present
+
+- name: Create containerd config directory
+  file:
+    path: /etc/containerd
+    state: directory
+
+- name: Configure containerd
+  shell: |
+    containerd config default | tee /etc/containerd/config.toml
+    sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
+  args:
+    creates: /etc/containerd/config.toml
+
+- name: Restart containerd
+  service:
+    name: containerd
+    state: restarted
+    enabled: yes
+
+- name: Install Kubernetes components
+  apt:
+    name:
+      - kubelet={{ kubernetes_version }}-00
+      - kubeadm={{ kubernetes_version }}-00
+      - kubectl={{ kubernetes_version }}-00
+    state: present
+
+- name: Hold Kubernetes packages
+  dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  with_items:
+    - kubelet
+    - kubeadm
+    - kubectl
+
+- name: Enable kubelet service
+  service:
+    name: kubelet
+    enabled: yes
+
+- name: Create kubeadm config
+  template:
+    src: templates/kubernetes/kubeadm-config.yml.j2
+    dest: /root/kubeadm-config.yml
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Initialize Kubernetes cluster
+  command: kubeadm init --config /root/kubeadm-config.yml
+  args:
+    creates: /etc/kubernetes/admin.conf
+  register: kubeadm_init
+
+- name: Create .kube directory for root
+  file:
+    path: /root/.kube
+    state: directory
+    owner: root
+    group: root
+    mode: 0700
+
+- name: Copy admin.conf to root's kube config
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    owner: root
+    group: root
+    mode: 0600
+    remote_src: yes
+
+- name: Create .kube directory for default user
+  file:
+    path: /home/{{ ansible_user }}/.kube
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 0700
+
+- name: Copy admin.conf to user's kube config
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /home/{{ ansible_user }}/.kube/config
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 0600
+    remote_src: yes
+
+- name: Install Flannel CNI plugin
+  command: kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
+  args:
+    creates: /etc/cni/net.d/10-flannel.conflist
+
+- name: Remove master node taint
+  command: kubectl taint nodes --all node-role.kubernetes.io/master-
+  ignore_errors: yes
