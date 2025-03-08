@@ -24,3 +24,5 @@ kubeconfig
 *.test
 *.prof
 *.out
+
+eth-health-check
