@@ -4,6 +4,8 @@ global:
   ethereum:
     network: sepolia
     jwtSecret: "0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3"
+  labels:
+    app: ethereum-node
 
 # Execution client configuration (Geth)
 geth:
@@ -23,7 +25,8 @@ geth:
     size: 500Gi
   service:
     labels:
-      app: geth  # This ensures ServiceMonitor can match the service
+      app: geth
+      component: geth  # Added for ServiceMonitor matching
   args:
     - "--datadir=/data"
     - "--sepolia"
@@ -64,7 +67,7 @@ lighthouse:
     size: 200Gi
   service:
     labels:
-      app: lighthouse  # This ensures ServiceMonitor can match the service
+      app: lighthouse
   args:
     - "beacon_node"
     - "--datadir=/data"
@@ -80,14 +83,76 @@ lighthouse:
 
 # Prometheus configuration
 prometheus:
+  enabled: true
   alertmanager:
-    enabled: false
+    enabled: true
+    alertmanagerSpec:
+      storage:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: local-path
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 10Gi
   server:
     retention: 15d
+  prometheusSpec:
+    podMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelector:
+      matchLabels:
+        release: prometheus
+    resources:
+      requests:
+        memory: 2Gi
+        cpu: 500m
+      limits:
+        memory: 4Gi
+        cpu: 1000m
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+    additionalScrapeConfigs:
+      - job_name: 'geth'
+        scrape_interval: 15s
+        metrics_path: /debug/metrics/prometheus
+        static_configs:
+          - targets: ['geth-node.default.svc.cluster.local:6060']
+            labels:
+              instance: geth
+      - job_name: 'lighthouse'
+        scrape_interval: 15s
+        metrics_path: /metrics
+        static_configs:
+          - targets: ['lighthouse.default.svc.cluster.local:5054']
+            labels:
+              instance: lighthouse
+    ruleSelectorNilUsesHelmValues: false
+    additionalRuleLabels:
+      ethereum: rules
 
 # Grafana configuration
 grafana:
+  enabled: true
   adminPassword: admin123
+  persistence:
+    enabled: true
+    storageClassName: local-path
+    size: 10Gi
+  sidecar:
+    dashboards:
+      enabled: true
+      provider:
+        allowUiUpdates: true
+      searchNamespace: ALL
+      folderAnnotation: grafana_folder
+      label: grafana_dashboard
   datasources:
     datasources.yaml:
       apiVersion: 1
@@ -103,26 +168,64 @@ grafana:
       providers:
         - name: 'default'
           orgId: 1
-          folder: ''
+          folder: 'Ethereum'
           type: file
           disableDeletion: false
           editable: true
           options:
-            path: /var/lib/grafana/dashboards
+            path: /var/lib/grafana/dashboards/default
   dashboards:
     default:
       ethereum-dashboard:
-        gnetId: 14053
-        datasource: Prometheus
+        configMapRef:
+          name: ethereum-dashboard
+          key: ethereum-dashboards.json
 
 # ServiceMonitor configuration
 serviceMonitor:
   enabled: true
+  labels:
+    release: prometheus
   geth:
     selector:
       matchLabels:
-        app: geth
+        component: geth
+    endpoints:
+      - port: metrics
+        path: /debug/metrics/prometheus
+        interval: 15s
   lighthouse:
     selector:
       matchLabels:
         app: lighthouse
+    endpoints:
+      - port: metrics
+        path: /metrics
+        interval: 15s
+
+# Node Exporter for system metrics
+nodeExporter:
+  enabled: true
+  serviceMonitor:
+    relabelings:
+      - action: replace
+        regex: (.*)
+        replacement: $1
+        sourceLabels:
+          - __meta_kubernetes_pod_node_name
+        targetLabel: kubernetes_node
+
+# Custom alerting rules for Ethereum nodes
+additionalPrometheusRulesMap:
+  ethereum-alerts:
+    groups:
+      - name: ethereum
+        rules:
+          - alert: LowPeerCount
+            expr: p2p_peers{job="geth"} < 5 or libp2p_peers{job="lighthouse"} < 5
+            for: 15m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Low peer count detected"
+              description: "Node has fewer than 5 peers connected for over 15 minutes."

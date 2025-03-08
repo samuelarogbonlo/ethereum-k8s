@@ -2,10 +2,14 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: {{ include "ethereum-node.fullname" . }}-geth
+  namespace: monitoring
   labels:
     {{- include "ethereum-node.labels" . | nindent 4 }}
     release: prometheus
 spec:
+  namespaceSelector:
+    matchNames:
+    - default
   selector:
     matchLabels:
       component: geth

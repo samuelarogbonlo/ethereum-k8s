@@ -24,6 +24,7 @@ REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 # Set paths using absolute references
 CHART_DIR="$REPO_ROOT/helm/ethereum-node"
 VALUES_FILE="$REPO_ROOT/helm/ethereum-node/values.yaml"
+DASHBOARD_FILE="$REPO_ROOT/helm/ethereum-node/dashboards/ethereum-dashboards.json"
 
 # Add repositories
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts || true
@@ -41,6 +42,15 @@ helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
 # Wait for CRDs to be ready
 echo -e "${BLUE}Waiting for ServiceMonitor CRDs to be established...${NC}"
 kubectl wait --for=condition=established crd/servicemonitors.monitoring.coreos.com --timeout=60s
+
+## Create the ConfigMap first
+kubectl create configmap ethereum-dashboard \
+  --from-file=ethereum-dashboards.json="$DASHBOARD_FILE" \
+  --namespace "$NAMESPACE" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+# Then label it separately
+kubectl label configmap ethereum-dashboard grafana_dashboard=1 -n "$NAMESPACE" --overwrite
 
 # Install local-path provisioner
 kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
