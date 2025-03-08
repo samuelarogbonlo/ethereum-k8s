@@ -1,6 +1,6 @@
 # Optimizing Web3 Ethereum Node Deployment on Bare Metal Kubernetes
 
-After running Ethereum nodes in production for 3+ years, I've compiled these insights for bare-metal K8s deployments. The focus is on execution and consensus client optimization in real-world settings, not theoretical ideals.
+After running Ethereum nodes in production for a couple years, I've compiled these insights for bare-metal K8s deployments. The focus is on execution and consensus client optimization in real-world settings, not theoretical ideals.
 
 ## Network Optimization for P2P Connections
 

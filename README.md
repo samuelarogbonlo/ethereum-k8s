@@ -40,7 +40,8 @@ make
 # Other useful commands
 make deploy        # Only deploy the Ethereum nodes
 make health-check  # Run health checks on existing deployment
-make help          # Show all available commands
+make monitoring    # Forward ports for Grafana and Prometheus
+make stop-monitoring # Stop port forwarding
 ```
 
 ### Accessing Services
@@ -54,28 +55,31 @@ All services are exposed through Kubernetes port forwarding:
 | Grafana | `kubectl port-forward -n monitoring svc/grafana 3000:3000` | http://localhost:3000 (admin/admin123) |
 | Prometheus | `kubectl port-forward -n monitoring svc/prometheus 9090:9090` | http://localhost:9090 |
 
-### Production Deployment
+## Additional Documentation
 
-For production environments, replace port forwarding with:
+- [Optimization.MD](docs/optimzation.MD) - Detailed performance tuning for bare metal environments
+- [Maintenance.md](docs/Maintenance.md) - Troubleshooting and maintenance procedures
+- [Prod-Improvements.md](docs/prod-Improvements.md) - Production enhancement suggestions beyond the reference implementation.
+- [Decision-process.md](docs/decision-process.md) - Rationale behind key design and technology choices
 
-1. **LoadBalancer Services**: Change service type to `LoadBalancer` (cloud environments)
-2. **Ingress Controllers**: Configure ingress rules for web access with TLS
-3. **NodePort Services**: Expose on fixed ports across all nodes (bare metal)
+## Implementation Details
 
-Important production considerations:
-- Implement proper authentication for RPC endpoints
-- Enable TLS encryption for all external connections
-- Configure network policies and firewall rules
-- Set up external monitoring with alerts
+### Architecture
 
-## Performance Optimization
+This deployment uses:
+- StatefulSets for both Geth and Lighthouse to ensure stable network identity and data persistence
+- Local persistent volumes for optimal I/O performance
+- Prometheus Operator with ServiceMonitors for automatic metric discovery
+- Grafana dashboards customized for Ethereum node monitoring
+- Health check script in Go to validate node functionality
 
-See the [Optimization.MD](https://github.com/samuelarogbonlo/ethereum-k8s/blob/main/docs/optimzation.MD) file for detailed information on optimizing your Ethereum node deployment, including:
+### Automation
 
-- Network performance tuning for P2P traffic
-- Storage configuration for blockchain data
-- System-level optimizations (NUMA, file limits, scheduler settings)
-- Client-specific parameter optimization
+The included automation:
+- `make deploy` - Handles full deployment via Helm
+- `make health-check` - Verifies node health including peer count and sync status
+- `make monitoring` - Sets up port-forwarding to access Grafana and Prometheus
+- Ansible playbook for bare metal server provisioning
 
 ## License
 
