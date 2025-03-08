@@ -1,0 +1,128 @@
+# values.yaml
+global:
+  storageClass: local-path
+  ethereum:
+    network: sepolia
+    jwtSecret: "0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3"
+
+# Execution client configuration (Geth)
+geth:
+  enabled: true
+  image:
+    repository: ethereum/client-go
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1"
+    limits:
+      memory: "4Gi"
+      cpu: "2"
+  persistence:
+    size: 500Gi
+  service:
+    labels:
+      app: geth  # This ensures ServiceMonitor can match the service
+  args:
+    - "--datadir=/data"
+    - "--sepolia"
+    - "--syncmode=snap"
+    - "--port=30303"
+    - "--http"
+    - "--http.port=8545"
+    - "--http.addr=0.0.0.0"
+    - "--http.vhosts=*"
+    - "--http.api=eth,net,web3,txpool"
+    - "--ws"
+    - "--ws.port=8546"
+    - "--ws.addr=0.0.0.0"
+    - "--ws.origins=*"
+    - "--metrics"
+    - "--metrics.addr=0.0.0.0"
+    - "--metrics.port=6060"
+    - "--authrpc.addr=0.0.0.0"
+    - "--authrpc.port=8551"
+    - "--authrpc.vhosts=*"
+    - "--authrpc.jwtsecret=/secrets/jwt/jwt.hex"
+
+# Consensus client configuration (Lighthouse)
+lighthouse:
+  enabled: true
+  image:
+    repository: sigp/lighthouse
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1"
+    limits:
+      memory: "4Gi"
+      cpu: "2"
+  persistence:
+    size: 200Gi
+  service:
+    labels:
+      app: lighthouse  # This ensures ServiceMonitor can match the service
+  args:
+    - "beacon_node"
+    - "--datadir=/data"
+    - "--network=sepolia"
+    - "--execution-endpoint=http://geth-node:8551"
+    - "--execution-jwt=/secrets/jwt/jwt.hex"
+    - "--allow-insecure-genesis-sync"
+    - "--http"
+    - "--http-address=0.0.0.0"
+    - "--metrics"
+    - "--metrics-address=0.0.0.0"
+    - "--metrics-port=5054"
+
+# Prometheus configuration
+prometheus:
+  alertmanager:
+    enabled: false
+  server:
+    retention: 15d
+
+# Grafana configuration
+grafana:
+  adminPassword: admin123
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          url: http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090
+          access: proxy
+          isDefault: true
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: 'default'
+          orgId: 1
+          folder: ''
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards
+  dashboards:
+    default:
+      ethereum-dashboard:
+        gnetId: 14053
+        datasource: Prometheus
+
+# ServiceMonitor configuration
+serviceMonitor:
+  enabled: true
+  geth:
+    selector:
+      matchLabels:
+        app: geth
+  lighthouse:
+    selector:
+      matchLabels:
+        app: lighthouse

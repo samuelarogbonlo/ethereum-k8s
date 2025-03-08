@@ -1,0 +1,109 @@
+## Prometheus Configuration for Ethereum Node Monitoring
+## Ensure service names match the actual Kubernetes services
+
+prometheus:
+  prometheusSpec:
+    podMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    retention: 15d
+    resources:
+      requests:
+        memory: 2Gi
+        cpu: 500m
+      limits:
+        memory: 4Gi
+        cpu: 1000m
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-storage
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+    # Explicitly set the scrape configuration
+    additionalScrapeConfigs:
+      - job_name: 'geth'
+        scrape_interval: 15s
+        metrics_path: /debug/metrics/prometheus
+        static_configs:
+          - targets: ['geth.default.svc.cluster.local:6060']
+            labels:
+              instance: geth
+      - job_name: 'lighthouse'
+        scrape_interval: 15s
+        metrics_path: /metrics
+        static_configs:
+          - targets: ['lighthouse.default.svc.cluster.local:5054']
+            labels:
+              instance: lighthouse
+
+alertmanager:
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-storage
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+
+grafana:
+  persistence:
+    enabled: true
+    storageClassName: local-storage
+    size: 10Gi
+
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          url: http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090
+          access: proxy
+          isDefault: true
+
+  # Dashboard providers
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: "ethereum"
+          orgId: 1
+          folder: "Ethereum"
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/ethereum
+
+nodeExporter:
+  enabled: true
+  serviceMonitor:
+    relabelings:
+      - action: replace
+        regex: (.*)
+        replacement: $1
+        sourceLabels:
+          - __meta_kubernetes_pod_node_name
+        targetLabel: kubernetes_node
+
+kubeStateMetrics:
+  enabled: true
+
+# Custom alerting rules for Ethereum nodes
+additionalPrometheusRulesMap:
+  ethereum-alerts:
+    groups:
+      - name: ethereum
+        rules:
+          - alert: LowPeerCount
+            expr: p2p_peers{job="geth"} < 5 or libp2p_peers{job="lighthouse"} < 5
+            for: 15m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Low peer count detected"
+              description: "Node has fewer than 5 peers connected for over 15 minutes."

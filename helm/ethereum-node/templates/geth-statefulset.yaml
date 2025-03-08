@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: geth
+  labels:
+    app: geth
+    {{- if .Values.global.labels }}
+    {{- toYaml .Values.global.labels | nindent 4 }}
+    {{- end }}
+spec:
+  serviceName: "geth"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: geth
+  template:
+    metadata:
+      labels:
+        app: geth
+    spec:
+      securityContext:
+        fsGroup: 2000
+        runAsUser: 1000
+      containers:
+      - name: geth
+        image: "{{ .Values.geth.image.repository }}:{{ .Values.geth.image.tag }}"
+        imagePullPolicy: {{ .Values.geth.image.pullPolicy }}
+        args:
+        {{- range .Values.geth.args }}
+          - {{ . | quote }}
+        {{- end }}
+        ports:
+        - containerPort: 8545
+          name: http-rpc
+        - containerPort: 8546
+          name: ws-rpc
+        - containerPort: 30303
+          name: p2p-tcp
+        - containerPort: 30303
+          protocol: UDP
+          name: p2p-udp
+        - containerPort: 8551
+          name: engine-api
+        - containerPort: 6060
+          name: metrics
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: jwt-secret
+          mountPath: /secrets/jwt
+        resources:
+          {{- toYaml .Values.geth.resources | nindent 10 }}
+      volumes:
+      - name: jwt-secret
+        configMap:
+          name: jwt-secret
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: {{ .Values.global.storageClass }}
+      resources:
+        requests:
+          storage: {{ .Values.geth.persistence.size }}

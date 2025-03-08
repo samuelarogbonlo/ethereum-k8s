@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "ethereum-node.fullname" . }}-geth
+  labels:
+    {{- include "ethereum-node.labels" . | nindent 4 }}
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      component: geth
+  endpoints:
+    - port: metrics
+      path: /debug/metrics/prometheus
+      interval: 15s

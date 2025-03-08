@@ -1,0 +1,109 @@
+---
+# Enhanced main playbook for Ethereum node setup
+- name: Provision Ethereum Node on Bare Metal
+  hosts: ethereum_nodes
+  become: true
+  vars_files:
+    - vars/main.yml
+
+  pre_tasks:
+    - name: Update package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Install python3-pip package
+      package:
+        name: python3-pip
+        state: present
+
+    - name: Install required python modules
+      pip:
+        name:
+          - kubernetes
+          - openshift
+        state: present
+
+  roles:
+    - role: common
+      tags: common
+
+    - role: storage
+      tags: storage
+
+    - role: network
+      tags: network
+
+    - role: kubernetes
+      tags: kubernetes
+
+    - role: ethereum
+      tags: ethereum
+
+    - role: monitoring
+      tags: monitoring
+
+  post_tasks:
+    - name: Check if Kubernetes is running
+      command: kubectl cluster-info
+      register: k8s_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display kubernetes status
+      debug:
+        msg: "Kubernetes is running properly"
+      when: k8s_status.rc == 0
+
+    - name: Deploy local storage provisioner
+      command: kubectl apply -f {{ playbook_dir }}/files/storage/local-storage-provisioner.yaml
+      when: k8s_status.rc == 0
+
+    - name: Deploy Ethereum nodes
+      command: kubectl apply -f {{ playbook_dir }}/files/ethereum/
+      when: k8s_status.rc == 0
+
+    - name: Install Helm
+      shell: |
+        curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+      args:
+        creates: /usr/local/bin/helm
+      when: k8s_status.rc == 0
+
+    - name: Add Helm repositories
+      shell: |
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm repo add grafana https://grafana.github.io/helm-charts
+        helm repo update
+      when: k8s_status.rc == 0
+      changed_when: false
+
+    - name: Create monitoring namespace
+      command: kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+      when: k8s_status.rc == 0
+      changed_when: false
+
+    - name: Deploy Prometheus stack
+      shell: |
+        helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
+          --namespace monitoring \
+          --values {{ playbook_dir }}/files/monitoring/prometheus-values.yaml
+      when: k8s_status.rc == 0
+      changed_when: true
+
+    - name: Deploy Loki stack
+      shell: |
+        helm upgrade --install loki grafana/loki-stack \
+          --namespace monitoring \
+          --values {{ playbook_dir }}/files/monitoring/loki-values.yaml
+      when: k8s_status.rc == 0
+      changed_when: true
+
+    - name: Wait for pods to be ready
+      shell: |
+        kubectl wait --for=condition=ready pod -l app=geth --timeout=300s
+        kubectl wait --for=condition=ready pod -l app=lighthouse --timeout=300s
+      when: k8s_status.rc == 0
+      changed_when: false
+      ignore_errors: true

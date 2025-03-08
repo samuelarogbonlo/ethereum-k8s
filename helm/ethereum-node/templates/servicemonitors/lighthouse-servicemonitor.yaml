@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "ethereum-node.fullname" . }}-lighthouse
+  labels:
+    {{- include "ethereum-node.labels" . | nindent 4 }}
+    release: prometheus  # Match with your Prometheus Operator's release
+spec:
+  selector:
+    matchLabels:
+      app: lighthouse
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s
