@@ -34,6 +34,9 @@ This repository contains Kubernetes manifests and supporting scripts for deployi
 The simplest way to deploy and validate the entire stack:
 
 ```bash
+# setup minikube locally
+minikube start --cpus=4 --memory=16g --disk-size=100g --driver=docker
+
 # Deploy everything and run health checks
 make
 
