@@ -1,5 +1,19 @@
 # Build artifacts
-health-check/eth-health-check
+/eth-health-check
+/scripts/eth-health-check
+
+# Helm chart packages
+*.tgz
+/helm/ethereum-node/charts/
+
+# Process ID files
+.grafana-pid
+.prometheus-pid
+*.pid
+
+# Generated files
+/kubernetes/local-pv.yaml
+/kubeconfig
 
 # Logs
 *.log
@@ -16,13 +30,18 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Kubernetes generated files
-kubeconfig
+# Temporary files
+*.tmp
+*.bak
+.terraform/
 
 # Go specific
 *.exe
 *.test
 *.prof
 *.out
+vendor/
 
-eth-health-check
+# Environment variables
+.env
+*.env
